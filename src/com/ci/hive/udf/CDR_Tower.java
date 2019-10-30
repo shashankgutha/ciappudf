@@ -6,7 +6,7 @@ import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.ql.exec.UDF;
-import org.apache.hadoop.io.Text;
+
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
@@ -17,9 +17,9 @@ import org.elasticsearch.search.sort.SortOrder;
 
 import com.ci.hive.udf.connection.ESConnection;
 
-public class CDR_Tower extends UDF {
+public class CDR_Tower extends UDF  {
 	
-	public Text evaluate(Text s) {
+	/*public String evaluate(String s) {
 		System.out.println(s+" enterenssssssssssssssssssss");
 		if(s.toString()!=null && StringUtils.isNotBlank(s.toString())) {
 		String[] rec = s.toString().split("$");
@@ -31,65 +31,57 @@ public class CDR_Tower extends UDF {
 			i++;
 		}
 	//	getCellTowerDetails(inputMap,input,rec);
-		return new Text ("success");
+		return new String ("success");
 		}else {
-			return new Text ("fail null");
+			return new String ("fail null");
 		}
 		
-	}
+	}*/
 	
+	 public String evaluate(String incoming, String state_key, String other, String celltowerid, String calling_no, String startonlytime, String starttime, String roaming_nw, String duration, String called_no, String imeinumber, String last_cellid, String imsinumber, String otherinfo, String phone, String asondate, String provider_key, String first_cellid, String call_type, String tower_key, String ucid) {
+			//String[] input= {"incoming","state_key","other","celltowerid","calling_no","startonlytime","starttime","roaming_nw","duration","called_no","imeinumber","last_cellid","imsinumber","otherinfo","phone","asondate","provider_key","first_cellid","call_type","tower_key","ucid"};
+			Map input=new HashMap();
+			input.put("incoming",incoming);
+			input.put("state_key",state_key);
+			input.put("other",other);
+			input.put("celltowerid",celltowerid);
+			input.put("calling_no",calling_no);
+			input.put("startonlytime",startonlytime);
+			input.put("starttime",starttime);
+			input.put("roaming_nw",roaming_nw);
+			input.put("duration",duration);
+			input.put("called_no",called_no);
+			input.put("imeinumber",imeinumber);
+			input.put("last_cellid",last_cellid);
+			input.put("imsinumber",imsinumber);
+			input.put("otherinfo",otherinfo);
+			input.put("phone",phone);
+			input.put("asondate",asondate);
+			input.put("provider_key",provider_key);
+			input.put("first_cellid",first_cellid);
+			input.put("call_type",call_type);
+			input.put("tower_key",tower_key);
+			input.put("ucid",ucid);
+			
+			ESServiceUtils esUtils=new ESServiceUtils();
+			String out=esUtils.getCellTowerDetails(input);
+			//esUtils.indexDoc(input);
+			
+			return out;
+	  }
+	 
+	 
 	
+	/*public static void main(String[] args) {
+		CDR_Tower cdr_Tower = new CDR_Tower();
+		cdr_Tower.evaluate("1","1","381","40407-62-9092","null","15:26:13.0","2012-03-22 07:54:37.0","ROAMING_MAHARASHTRA","58","null","0","null","null","MUMBAI","7738593662","2012-10-15 17:41:26.657","6","null","null","22","184350829");
+		System.out.println("sdsdsdsds");
+	}*/
+	 
 	//towerkey direct join
 	//celltowerid >5 direct join
 	//celltowerid <=5 rely on statekey & provider key
 	
-	public void getCellTowerDetails(Map inputMap,String[] input,String[] rec) {
-		SearchRequestBuilder searchRequestBuilder=ESConnection.getConnection().prepareSearch("ci-celltower");
-		String towerKey=inputMap.get("tower_key").toString();
-		String celltowerid=inputMap.get("celltowerid").toString();
-		String statekey=inputMap.get("state_key").toString();
-		String providerKey=inputMap.get("provider_key").toString();
-		String starttime=inputMap.get("starttime").toString();
-		if(towerKey!=null && StringUtils.isNotBlank(towerKey)) {
-			searchRequestBuilder.setQuery(QueryBuilders.termQuery("tower_key", towerKey));
-		}else if(celltowerid.length()>5) {
-			BoolQueryBuilder boolQuery=QueryBuilders.boolQuery();
-			boolQuery.must(QueryBuilders.termQuery("celltowerid", celltowerid));
-			boolQuery.must(QueryBuilders.rangeQuery("lastupdate").lte(starttime));
-			searchRequestBuilder.setQuery(boolQuery);
-		}else if(celltowerid.length()<=5 && statekey!=null && StringUtils.isNotBlank(statekey) && providerKey!=null && StringUtils.isNotBlank(providerKey)) {
-			BoolQueryBuilder boolQuery=QueryBuilders.boolQuery();
-			boolQuery.must(QueryBuilders.termQuery("celltowerid", celltowerid));
-			boolQuery.must(QueryBuilders.rangeQuery("lastupdate").lte(starttime));
-			boolQuery.must(QueryBuilders.termQuery("state_key", statekey));
-			boolQuery.must(QueryBuilders.termQuery("provider_key", providerKey));
-			searchRequestBuilder.setQuery(boolQuery);
-		}
-		
-		searchRequestBuilder.addSort("lastupdate", SortOrder.DESC);
-		searchRequestBuilder.setSize(1);
-		SearchResponse serp=searchRequestBuilder.execute().actionGet();
-		
-		SearchHit[] hits=serp.getHits().getHits();
-		Map resp=new HashMap();
-		for(SearchHit hit:hits) {
-			resp=hit.getSourceAsMap();
-			break;
-		}
-		
-		int i=0;
-		for(String field:input) {
-			resp.put("cdr-"+field, rec[i]);
-			i++;
-		}
-		indexDoc(resp);
-		
-	}
 	
-	public void indexDoc(Map doc) {
-		IndexRequestBuilder indexReq=ESConnection.getConnection().prepareIndex("ci-cdrsumm", "docs");
-		indexReq.setSource(doc);
-		indexReq.execute().actionGet();
-	}
 	
 }
